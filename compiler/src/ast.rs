@@ -1,4 +1,5 @@
 
+use std::collections::HashMap;
 use std::collections::HashSet;
 
 pub struct TmDef {
@@ -21,16 +22,49 @@ pub enum TmStmt {
     Cycle(TmBlock)
 }
 
-pub enum TmStep {
-    ReplMove { 
-        lhs: HashSet<String>,
-        rhs: Option<String>,
-        dir: TmDir,
+pub struct AtomicTmStep {
+    patterns: HashSet<String>,
+    operation: TmOperation
+}
+
+impl AtomicTmStep {
+    pub fn new(
+        patterns: Vec<String>, 
+        repl: Option<String>, 
+        dir: TmDir) 
+        -> AtomicTmStep 
+    {
+        AtomicTmStep {
+            patterns: patterns.into_iter().collect(),
+            operation: TmOperation::Move {
+                replace: repl,
+                direction: dir
+            }
+        }
+    }
+}
+
+pub struct TmStep{
+    map: HashMap<String, TmOperation>,
+    default: Option<TmOperation>
+}
+
+impl FromIterator<AtomicTmStep> for TmStep {
+    fn from_iter<T: IntoIterator<Item = AtomicTmStep>>(_: T) -> Self { 
+        todo!() 
+    }
+}
+
+pub enum TmOperation {
+    Move { 
+        replace: Option<String>, 
+        direction: TmDir
     },
     Break,
     Halt
 }
 
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub enum TmDir {
     Left,
     Right,
