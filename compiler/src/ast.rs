@@ -4,20 +4,31 @@ use std::collections::HashSet;
 
 pub struct TmDef {
     identifier: String,
-    alphabet: Vec<String>,
+    alphabet: HashSet<String>,
     block: TmBlock
+}
+
+impl TmDef {
+    pub fn new(
+        identifier: String, 
+        alphabet: HashSet<String>, 
+        block: TmBlock) 
+        -> TmDef 
+    {
+        TmDef { identifier, alphabet, block }
+    }
 }
 
 pub struct TmBlock (Vec<TmStmt>);
 
 impl TmBlock {
-    pub fn new() -> TmBlock {
-        TmBlock(Vec::new())
+    pub fn new(stats: Vec<TmStmt>) -> TmBlock {
+        TmBlock(stats)
     }
 }
 
 pub enum TmStmt {
-    Step(Vec<TmStep>),
+    Step(TmStep),
     Branch { condition: TmStep, body: TmBlock },
     Cycle(TmBlock)
 }
@@ -44,9 +55,27 @@ impl AtomicTmStep {
     }
 }
 
-pub struct TmStep{
-    map: HashMap<String, TmOperation>,
+pub struct TmStep {
+    cases: HashMap<String, TmOperation>,
     default: Option<TmOperation>
+}
+
+impl TmStep {
+    pub fn new(
+        atomic_steps: Vec<AtomicTmStep>, 
+        default: Option<TmOperation>) 
+        -> TmStep
+    {
+        let mut cases = HashMap::new();
+
+        for atomic_step in atomic_steps {
+            for pattern in atomic_step.patterns {
+                cases.insert(pattern, atomic_step.operation.clone());
+            }
+        }
+
+        TmStep { cases, default }
+    }
 }
 
 impl FromIterator<AtomicTmStep> for TmStep {
@@ -55,6 +84,7 @@ impl FromIterator<AtomicTmStep> for TmStep {
     }
 }
 
+#[derive(Clone, Eq, PartialEq)]
 pub enum TmOperation {
     Move { 
         replace: Option<String>, 

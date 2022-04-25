@@ -9,3 +9,4 @@ edition = "2021"
 combine = { version = "4.6", features = ["regex"] }
 once_cell = "1.10"
 regex = "1"
+either = "1"
