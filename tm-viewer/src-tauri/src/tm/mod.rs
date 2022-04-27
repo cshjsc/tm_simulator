@@ -1,26 +1,31 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    str::FromStr,
+};
 
-#[derive(Debug)]
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum Direction {
     Right,
     Left,
     Unchanged,
 }
 
-#[derive(Debug)]
-pub struct TransitionFunction<'a> {
-    origin: &'a str,
-    bands_requirements: Vec<char>,
-    bands_actions: Vec<(char, Direction)>,
-    next_state_name: &'a str,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TransitionFunction {
+    origin: String,
+    bands_requirements: Vec<String>,
+    bands_actions: Vec<(String, Direction)>,
+    next_state_name: String,
 }
 
-impl<'a> TransitionFunction<'a> {
-    fn new(
-        origin: &'a str,
-        bands_requirements: Vec<char>,
-        bands_actions: Vec<(char, Direction)>,
-        next_state_name: &'a str,
+impl TransitionFunction {
+    pub fn new(
+        origin: String,
+        bands_requirements: Vec<String>,
+        bands_actions: Vec<(String, Direction)>,
+        next_state_name: String,
     ) -> Self {
         if bands_requirements.len() != bands_actions.len() {
             //TODO message
@@ -34,32 +39,41 @@ impl<'a> TransitionFunction<'a> {
         }
     }
 }
-#[derive(Debug)]
-struct State<'a> {
-    transition_functions: Vec<TransitionFunction<'a>>,
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct State {
+    transition_functions: Vec<TransitionFunction>,
     is_end_state: bool,
 }
-
-struct Machine<'a> {
-    alphabet: HashSet<char>,
-    size: usize,
-    states: HashMap<&'a str, State<'a>>,
-    start_state_name: &'a str,
+impl State {
+    pub fn new(transition_functions: Vec<TransitionFunction>, is_end_state: bool) -> Self {
+        Self {
+            transition_functions,
+            is_end_state,
+        }
+    }
 }
-impl<'a> Machine<'a> {
-    fn new(
-        alphabet: HashSet<char>,
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Machine {
+    alphabet: HashSet<String>,
+    size: usize,
+    states: HashMap<String, State>,
+    start_state_name: String,
+}
+impl Machine {
+    pub fn new(
+        alphabet: HashSet<String>,
         size: usize,
-        states: HashMap<&'a str, State<'a>>,
-        start_state: &'a str,
+        states: HashMap<String, State>,
+        start_state: String,
         //end_state: &'a str,
         //transition_functions: Vec<&'a TransitionFunction<'a>>,
     ) -> Result<Self, &'static str> {
         //TODO make this more idiomatic? and refactor
         //TODO make sure the machine has a way to end
         let mut alphabet = alphabet;
-        alphabet.insert(' ');
-        if !states.contains_key(start_state) {
+        alphabet.insert("_".to_string());
+        if !states.contains_key(&start_state) {
             return Err("origin not in states");
         }
         for (_name, state) in states.iter() {
@@ -99,38 +113,76 @@ impl<'a> Machine<'a> {
     }
 }
 
-struct MachineExecutor<'a> {
-    machine: &'a Machine<'a>,
-    bands: Vec<Vec<char>>,
-    bands_cursors: Vec<usize>,
-    current_state: &'a State<'a>,
+/**
+ * Machine definition format
+ * each statement ends with a semicolon followed by an optinal break line
+ * str; //start state
+ * str; //end state
+ * str; //end state
+ * str; //end state
+ * s usize; /number of bands
+ * str (char )+ > \(char, Direction\)+ str; // function: the state -> chars that should be in the bands -> literal '>' -> sequence of actions for each band (char to write, where to move) -> next_state
+ *
+ * example:
+ * q0;
+ * q1;
+ * s 1;
+ * q0 0 > (1, R) q0;
+ * q0 1 > (1, R) q0;
+ * q0 _ > (_, N) q1;
+ */
+impl FromStr for Machine {
+    type Err = &'static str;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let list = s
+            .split(';')
+            .map(|l| l.trim().to_string())
+            .collect::<Vec<String>>();
+        todo!()
+    }
 }
 
-impl<'a> MachineExecutor<'a> {
-    fn new(machine: &'a Machine<'a>, input: Vec<char>) -> Self {
+#[derive(Serialize)]
+pub struct MachineExecutor {
+    machine: Machine,
+    bands: Vec<Vec<String>>,
+    bands_cursors: Vec<usize>,
+    current_state: State,
+}
+
+impl MachineExecutor {
+    pub fn new(machine: Machine, input: Vec<String>) -> Self {
         let mut bands = vec![input];
-        for _ in 1..machine.size {
-            bands.push(Vec::new());
-        }
+        bands.resize_with(machine.size, Vec::new);
+        //for _ in 1..machine.size {
+        //    bands.push(Vec::new());
+        //}
+        let start_state = machine
+            .states
+            .get(&machine.start_state_name)
+            .unwrap()
+            .clone();
+        let number_of_bands = machine.size;
         Self {
             machine,
             bands,
-            bands_cursors: vec![0; machine.size],
-            current_state: machine.states.get(machine.start_state_name).unwrap(),
+            bands_cursors: vec![0; number_of_bands],
+            current_state: start_state,
         }
     }
 }
 
-impl MachineExecutor<'_> {
-    fn next_step(&mut self) -> Option<&TransitionFunction> {
-        if let Some(transition) = self
-            .current_state
+impl MachineExecutor {
+    pub fn next_step(&mut self) -> Option<TransitionFunction> {
+        let current_state = self.current_state.clone();
+        if let Some(transition) = current_state
             .transition_functions
             .iter()
             .find(|f| self.function_matches_band(f))
         {
             self.apply_transition_to_band(transition);
-            return Some(transition);
+            return Some(transition.clone());
         }
         None
     }
@@ -139,11 +191,11 @@ impl MachineExecutor<'_> {
         for x in 0..self.machine.size {
             let band_cursor = self.bands_cursors.get(x).unwrap();
             let band = self.bands.get_mut(x).unwrap();
-            band[*band_cursor] = transition.bands_actions.get(x).unwrap().0;
+            band[*band_cursor] = transition.bands_actions.get(x).unwrap().0.to_string();
             self.bands_cursors[x] = match transition.bands_actions.get(x).unwrap().1 {
                 Direction::Right => {
                     if band_cursor + 1 == band.len() {
-                        band.push(' ');
+                        band.push("_".to_string());
                     }
                     band_cursor + 1
                 }
@@ -157,7 +209,12 @@ impl MachineExecutor<'_> {
                 Direction::Unchanged => *band_cursor,
             };
         }
-        self.current_state = self.machine.states.get(transition.next_state_name).unwrap();
+        self.current_state = self
+            .machine
+            .states
+            .get(&transition.next_state_name)
+            .unwrap()
+            .clone();
     }
 
     fn function_matches_band(&self, transition: &TransitionFunction) -> bool {
@@ -172,6 +229,8 @@ impl MachineExecutor<'_> {
         false
     }
 }
+#[derive(Serialize)]
+pub struct SimulationStep {}
 
 #[cfg(test)]
 mod tests {
@@ -181,30 +240,49 @@ mod tests {
     fn create_simple_machine() {
         let mut states = HashMap::new();
         states.insert(
-            "q0",
+            "q0".to_string(),
             State {
                 transition_functions: vec![
-                    TransitionFunction::new("q0", vec!['0'], vec![('1', Direction::Right)], "q0"),
-                    TransitionFunction::new("q0", vec!['1'], vec![('1', Direction::Right)], "q0"),
                     TransitionFunction::new(
-                        "q0",
-                        vec![' '],
-                        vec![(' ', Direction::Unchanged)],
-                        "q1",
+                        "q0".to_string(),
+                        vec!["0".to_string()],
+                        vec![("1".to_string(), Direction::Right)],
+                        "q0".to_string(),
+                    ),
+                    TransitionFunction::new(
+                        "q0".to_string(),
+                        vec!['1'.to_string()],
+                        vec![('1'.to_string(), Direction::Right)],
+                        "q0".to_string(),
+                    ),
+                    TransitionFunction::new(
+                        "q0".to_string(),
+                        vec!['_'.to_string()],
+                        vec![('_'.to_string(), Direction::Unchanged)],
+                        "q1".to_string(),
                     ),
                 ],
                 is_end_state: false,
             },
         );
         states.insert(
-            "q1",
+            "q1".to_string(),
             State {
                 transition_functions: vec![],
                 is_end_state: true,
             },
         );
-        let machine = Machine::new(HashSet::from(['0', '1']), 1, states, "q0").unwrap();
-        let mut machine_executor = MachineExecutor::new(&machine, "000".chars().collect());
+        let machine = Machine::new(
+            HashSet::from(['0'.to_string(), '1'.to_string()]),
+            1,
+            states,
+            "q0".to_string(),
+        )
+        .unwrap();
+        let mut machine_executor = MachineExecutor::new(
+            machine,
+            vec!["0".to_string(), "0".to_string(), "0".to_string()],
+        );
         println!("initial state{:?}", machine_executor.bands);
         while let Some(step) = machine_executor.next_step() {
             println!("{:?}", step);
@@ -214,9 +292,10 @@ mod tests {
             println!("{:?}", machine_executor.current_state);
         }
         assert!(machine_executor.current_state.is_end_state);
+        let bands = machine_executor.bands.get(0).unwrap();
         assert_eq!(
-            machine_executor.bands,
-            vec!["111 ".chars().collect::<Vec<char>>()]
+            bands.iter().flat_map(|s| s.chars()).collect::<String>(),
+            "111_"
         );
     }
 }
