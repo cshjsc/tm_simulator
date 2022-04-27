@@ -38,9 +38,11 @@ fn tm_def_<Input>() -> impl Parser< Input, Output = ast::TmDef >
     string("fn").skip(skip_spaces())
         .with(tm_ident()).skip(skip_spaces())
         .and(tm_alpha_set()).skip(skip_spaces())
-        .and(tm_block())
-        .map(|((id, set), block)| 
-            ast::TmDef::new(id, set, block))
+        .then(|(id, set)| {
+            tm_block(&set)
+                .and(value((id, set)))
+                .map(|(block, (id, set))| ast::TmDef::new(id, set, block))
+        })
 }
 
 parser!{
@@ -72,6 +74,7 @@ fn tm_ident_<Input>() -> impl Parser< Input, Output = String >
 
     find(&*REGEX)
         .map(Input::Range::into)
+        .expected("identifier")
         .then(|res: String| {
             if let Some(kw) = KEYWORDS.get(res.as_str()) {
                 unexpected_any(kw)
@@ -79,7 +82,7 @@ fn tm_ident_<Input>() -> impl Parser< Input, Output = String >
                     .left()
             }
             else {
-                value(res).expected("identifier").right()
+                value(res).right()
             }
         })
 }
@@ -107,9 +110,19 @@ fn tm_alpha_<Input>() -> impl Parser< Input, Output = String >
     static ALPHA_SYM: Lazy<Regex> 
         = Lazy::new(|| Regex::new("^[[:alpha:]0-9_'\"!@#$%^&]+").unwrap());
 
-    let alpha_sym = find(&*ALPHA_SYM);
-
-    alpha_sym.map(Input::Range::into)
+    find(&*ALPHA_SYM)
+        .map(Input::Range::into)
+        .expected("alphabet symbol")
+        .then(|res: String| {
+            if let Some(kw) = KEYWORDS.get(res.as_str()) {
+                unexpected_any(kw)
+                    .message("You cannot use a keyword as alphabet symbol")
+                    .left()
+            }
+            else {
+                value(res).right()
+            }
+        })
 }
 
 parser!{
@@ -154,7 +167,7 @@ parser!{
     }
 }
 
-fn tm_block_<Input>() -> impl Parser< Input, Output = ast::TmBlock >
+fn tm_block_<Input>(alphabet: &HashSet<String>) -> impl Parser< Input, Output = ast::TmBlock >
     where
         Input: RangeStream<Token = char>,
         Input::Range: Range + Into<String>,
@@ -228,7 +241,7 @@ fn tm_block_<Input>() -> impl Parser< Input, Output = ast::TmBlock >
 }
 
 parser!{
-    fn tm_block[Input]()(Input) -> ast::TmBlock
+    fn tm_block['a, Input](alphabet: &'a HashSet<String>)(Input) -> ast::TmBlock
     where 
     [
         Input: RangeStream<Token = char>,
@@ -236,7 +249,7 @@ parser!{
         Regex: combine::parser::regex::Regex<Input::Range>
     ]
     {
-        tm_block_()
+        tm_block_(*alphabet)
     }
 
 }
