@@ -8,7 +8,8 @@ use std::{
     sync::Mutex,
 };
 
-use app::tm::{Direction, Machine, SimulationStep, State, TransitionFunction};
+use app::tm::SimulationStep;
+use compiler::tm::{Direction, Machine, State, TransitionFunction};
 use tauri::Manager;
 
 #[derive(Default)]

@@ -57,6 +57,7 @@ checksum = "08f9b8508dccb7687a1d6c4ce66b2b0ecef467c94667de27d8d7fe1f8d2a9cdc"
 name = "app"
 version = "0.1.0"
 dependencies = [
+ "compiler",
  "serde",
  "serde_json",
  "tauri",
@@ -428,6 +429,19 @@ checksum = "50b727aacc797f9fc28e355d21f34709ac4fc9adecfe470ad07b8f4464f53062"
 dependencies = [
  "bytes",
  "memchr",
+ "regex",
+]
+
+[[package]]
+name = "compiler"
+version = "0.1.0"
+dependencies = [
+ "combine",
+ "either",
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
