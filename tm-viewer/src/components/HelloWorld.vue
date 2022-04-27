@@ -10,9 +10,14 @@ defineProps({
 
 const count = ref(0);
 
-function helloFromRust() {
-  invoke("my_custom_command");
+async function helloFromRust() {
+  const executor = await invoke("get_test_machine");
+  console.log(executor);
   count.value++;
+}
+
+async function executeStep() {
+  const executor = await invoke("accept_input", { input: "test" });
 }
 </script>
 
@@ -35,6 +40,7 @@ function helloFromRust() {
   </p>
 
   <button type="button" @click="helloFromRust()">count is: {{ count }}</button>
+  <button type="button" @click="executeStep()">execute me</button>
   <p>
     Edit
     <code>components/HelloWorld.vue</code> to test hot module replacement.
