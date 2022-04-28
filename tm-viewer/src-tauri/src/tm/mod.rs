@@ -1,16 +1,13 @@
-use std::{
-    collections::{HashMap, HashSet},
-    str::FromStr,
-};
-
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use compiler::tm::*;
+
+type Bands = Vec<Vec<String>>;
 
 #[derive(Serialize)]
 pub struct MachineExecutor {
     machine: Machine,
-    bands: Vec<Vec<String>>,
+    bands: Bands,
     bands_cursors: Vec<usize>,
     current_state: State,
 }
@@ -19,9 +16,6 @@ impl MachineExecutor {
     pub fn new(machine: Machine, input: Vec<String>) -> Self {
         let mut bands = vec![input];
         bands.resize_with(machine.size, Vec::new);
-        //for _ in 1..machine.size {
-        //    bands.push(Vec::new());
-        //}
         let start_state = machine
             .states
             .get(&machine.start_state_name)
@@ -38,15 +32,18 @@ impl MachineExecutor {
 }
 
 impl MachineExecutor {
-    pub fn next_step(&mut self) -> Option<TransitionFunction> {
+    pub fn next_step(&mut self) -> Option<SimulationStep> {
         let current_state = self.current_state.clone();
-        if let Some(transition) = current_state
+        if let Some(item) = current_state
             .transition_functions
             .iter()
-            .find(|f| self.function_matches_band(f))
+            .enumerate()
+            .find(|i| self.function_matches_band(i.1))
         {
-            self.apply_transition_to_band(transition);
-            return Some(transition.clone());
+            self.apply_transition_to_band(item.1);
+            return Some(SimulationStep {
+                transition_function: (item.0, item.1.bands_actions.clone()),
+            });
         }
         None
     }
@@ -93,11 +90,15 @@ impl MachineExecutor {
         false
     }
 }
-#[derive(Serialize)]
-pub struct SimulationStep {}
+#[derive(Serialize, Debug)]
+pub struct SimulationStep {
+    transition_function: (usize, Vec<(String, Direction)>),
+}
 
 #[cfg(test)]
 mod tests {
+    use std::collections::{HashMap, HashSet};
+
     use super::*;
 
     #[test]
@@ -148,12 +149,8 @@ mod tests {
             vec!["0".to_string(), "0".to_string(), "0".to_string()],
         );
         println!("initial state{:?}", machine_executor.bands);
-        while let Some(step) = machine_executor.next_step() {
-            println!("{:?}", step);
-            println!(" after first step");
-            println!("{:?}", machine_executor.bands);
-            println!("{:?}", machine_executor.bands_cursors);
-            println!("{:?}", machine_executor.current_state);
+        while let Some(simulation_step) = machine_executor.next_step() {
+            println!("{:?}", simulation_step);
         }
         assert!(machine_executor.current_state.is_end_state);
         let bands = machine_executor.bands.get(0).unwrap();

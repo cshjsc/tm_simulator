@@ -8,7 +8,7 @@ use std::{
     sync::Mutex,
 };
 
-use app::tm::SimulationStep;
+use app::tm::{MachineExecutor, SimulationStep};
 use compiler::tm::{Direction, Machine, State, TransitionFunction};
 use tauri::Manager;
 
@@ -60,9 +60,13 @@ fn get_test_machine(state: tauri::State<'_, AppState>) -> Machine {
 }
 
 #[tauri::command]
-fn accept_input(input: String, state: tauri::State<'_, AppState>) -> Vec<SimulationStep> {
-    println!("{:?}", state.machine.lock().unwrap());
-    vec![]
+fn accept_input(input: Vec<String>, state: tauri::State<'_, AppState>) -> Vec<SimulationStep> {
+    let mut steps = Vec::new();
+    let mut executor = MachineExecutor::new(state.machine.lock().unwrap().clone().unwrap(), input);
+    while let Some(simulation_step) = executor.next_step() {
+        steps.push(simulation_step)
+    }
+    steps
 }
 
 fn main() {
