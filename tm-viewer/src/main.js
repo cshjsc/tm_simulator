@@ -1,4 +1,7 @@
-import { createApp } from 'vue'
-import App from './App.vue'
+import { createApp } from "vue";
+import App from "./App.vue";
+import VNetworkGraph from "v-network-graph";
 
-createApp(App).mount('#app')
+const app = createApp(App);
+app.use(VNetworkGraph);
+app.mount("#app");
