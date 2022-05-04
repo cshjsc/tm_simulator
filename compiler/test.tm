@@ -1,19 +1,3 @@
-fn double [x, _] {
-    x -> _ >> or break;
-    cycle {
-        cycle { x>> or break; }
-        _>>;
-        cycle { x>> or break; }
-        _ -> x <<;
-        cycle { x<< or break; }
-        _<<;
-        cycle { x<< or break; }
-        _ -> x >>;
-        x -> _ >> or break;
-    }
-    _ -> x <<;
-}
-
 fn multiply [1, 1', 2, 3, 4, 5, _] {
     branch 2 -> _ >> {
         cycle { 2 >> or break; }

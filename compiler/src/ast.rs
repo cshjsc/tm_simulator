@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 use std::collections::HashSet;
 
+use crate::tm::{Direction, Machine, State};
+
+use either::Either;
+
 pub struct TmDef {
     identifier: String,
     alphabet: HashSet<String>,
@@ -48,6 +52,7 @@ impl AtomicTmStep {
     }
 }
 
+#[derive(Debug)]
 pub struct TmStep {
     cases: HashMap<String, TmOperation>,
     default: Option<TmOperation>,
@@ -67,7 +72,7 @@ impl TmStep {
     }
 }
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum TmOperation {
     Move {
         replace: Option<String>,
@@ -77,9 +82,49 @@ pub enum TmOperation {
     Halt,
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum TmDir {
     Left,
     Right,
     Stay,
+}
+
+pub fn into_steps(def: TmDef) -> HashMap<u32, (TmStep, u32, u32)> {
+    let mut state_counter = 2..;
+    let mut queue = vec![(Either::Left(def.block), 1, 0, 0)];
+    let mut steps = HashMap::new();
+
+    while let Some((inst, curr, next, outer)) = queue.pop() {
+        match inst {
+            Either::Left(TmBlock(block)) => {
+                let mut curr_st = curr;
+                let mut instructions = block
+                    .into_iter()
+                    .map(|instruction| {
+                        let next_st = state_counter.next().unwrap();
+                        let res = (Either::Right(instruction), curr_st, next_st, outer);
+                        curr_st = next_st;
+                        res
+                    })
+                    .collect::<Vec<_>>();
+
+                let len = instructions.len();
+                instructions[len - 1].2 = next;
+                queue.append(&mut instructions);
+            }
+            Either::Right(TmStmt::Cycle(block)) => {
+                queue.push((Either::Left(block), curr, curr, next));
+            }
+            Either::Right(TmStmt::Branch { condition, body }) => {
+                let body_st = state_counter.next().unwrap();
+                queue.push((Either::Right(TmStmt::Step(condition)), curr, body_st, next));
+                queue.push((Either::Left(body), body_st, outer, outer));
+            }
+            Either::Right(TmStmt::Step(step)) => {
+                steps.insert(curr, (step, next, outer));
+            }
+        }
+    }
+
+    steps
 }

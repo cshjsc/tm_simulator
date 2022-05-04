@@ -240,7 +240,18 @@ where
         })
     };
 
-    let stmt = || step().map(ast::TmStmt::Step).skip(lex_char(';'));
+    let stmt = || {
+        choice((
+            step()
+                .expected("step")
+                .map(ast::TmStmt::Step)
+                .skip(lex_char(';')),
+            string("cycle")
+                .skip(skip_spaces())
+                .with(tm_block(alphabet.clone()))
+                .map(ast::TmStmt::Cycle),
+        ))
+    };
 
     between(lex_char('{'), lex_char('}'), many(stmt())).map(ast::TmBlock::new)
 }
