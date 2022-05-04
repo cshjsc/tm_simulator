@@ -1,25 +1,23 @@
-
 use std::collections::HashMap;
 use std::collections::HashSet;
 
 pub struct TmDef {
     identifier: String,
     alphabet: HashSet<String>,
-    block: TmBlock
+    block: TmBlock,
 }
 
 impl TmDef {
-    pub fn new(
-        identifier: String, 
-        alphabet: HashSet<String>, 
-        block: TmBlock) 
-        -> TmDef 
-    {
-        TmDef { identifier, alphabet, block }
+    pub fn new(identifier: String, alphabet: HashSet<String>, block: TmBlock) -> TmDef {
+        TmDef {
+            identifier,
+            alphabet,
+            block,
+        }
     }
 }
 
-pub struct TmBlock (Vec<TmStmt>);
+pub struct TmBlock(Vec<TmStmt>);
 
 impl TmBlock {
     pub fn new(stats: Vec<TmStmt>) -> TmBlock {
@@ -30,42 +28,33 @@ impl TmBlock {
 pub enum TmStmt {
     Step(TmStep),
     Branch { condition: TmStep, body: TmBlock },
-    Cycle(TmBlock)
+    Cycle(TmBlock),
 }
 
 pub struct AtomicTmStep {
     patterns: HashSet<String>,
-    operation: TmOperation
+    operation: TmOperation,
 }
 
 impl AtomicTmStep {
-    pub fn new(
-        patterns: Vec<String>, 
-        repl: Option<String>, 
-        dir: TmDir) 
-        -> AtomicTmStep 
-    {
+    pub fn new(patterns: Vec<String>, repl: Option<String>, dir: TmDir) -> AtomicTmStep {
         AtomicTmStep {
             patterns: patterns.into_iter().collect(),
             operation: TmOperation::Move {
                 replace: repl,
-                direction: dir
-            }
+                direction: dir,
+            },
         }
     }
 }
 
 pub struct TmStep {
     cases: HashMap<String, TmOperation>,
-    default: Option<TmOperation>
+    default: Option<TmOperation>,
 }
 
 impl TmStep {
-    pub fn new(
-        atomic_steps: Vec<AtomicTmStep>, 
-        default: Option<TmOperation>) 
-        -> TmStep
-    {
+    pub fn new(atomic_steps: Vec<AtomicTmStep>, default: Option<TmOperation>) -> TmStep {
         let mut cases = HashMap::new();
 
         for atomic_step in atomic_steps {
@@ -78,25 +67,19 @@ impl TmStep {
     }
 }
 
-impl FromIterator<AtomicTmStep> for TmStep {
-    fn from_iter<T: IntoIterator<Item = AtomicTmStep>>(_: T) -> Self { 
-        todo!() 
-    }
-}
-
 #[derive(Clone, Eq, PartialEq)]
 pub enum TmOperation {
-    Move { 
-        replace: Option<String>, 
-        direction: TmDir
+    Move {
+        replace: Option<String>,
+        direction: TmDir,
     },
     Break,
-    Halt
+    Halt,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum TmDir {
     Left,
     Right,
-    Stay
+    Stay,
 }
