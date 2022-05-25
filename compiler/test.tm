@@ -1,6 +1,6 @@
 fn multiply [1, 1', 2, 3, 4, 5, _] {
     branch 2 -> _ >> {
-        cycle { 2 >> or break; }
+        cycle { 2 -> _ >> or break; }
     }
 
     1 -> 1' >> or break;
@@ -9,6 +9,7 @@ fn multiply [1, 1', 2, 3, 4, 5, _] {
 
     branch 1 -> _ << {
         cycle { 1 -> _ << or break; }
+        1' -> _;
     }
 
     2 -> _ <<;
